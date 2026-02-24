@@ -1,0 +1,402 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wochclicko - Premium Anime OTT</title>
+    
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* --- CORE THEME --- */
+        :root {
+            --gold: #FFD700;
+            --gold-grad: linear-gradient(45deg, #FFD700, #FDB931, #C06500);
+            --dark: #0a0a0a;
+            --card: #141414;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body { background: var(--dark); color: #fff; font-family: 'Poppins', sans-serif; overflow-x: hidden; padding-bottom: 100px; }
+
+        .gold-text { background: var(--gold-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .text-glow { text-shadow: 0px 0px 15px rgba(255, 215, 0, 0.5); }
+        .btn-gold { background: var(--gold-grad); border: none; color: #000; padding: 8px 16px; font-weight: 700; border-radius: 4px; cursor: pointer; text-transform: uppercase; font-size: 11px; box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); }
+        .btn-outline { background: rgba(0,0,0,0.6); border: 1px solid var(--gold); color: var(--gold); }
+
+        /* --- INTRO & "W" ANIMATION --- */
+        #intro-overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.6s ease; }
+        .hand-icon { font-size: 80px; color: #fff; animation: float 2s infinite ease-in-out; cursor: pointer; }
+        .tap-text { color: #555; font-size: 12px; margin-top: 10px; letter-spacing: 3px; }
+        #big-w { position: absolute; font-family: 'Cinzel', serif; font-size: 100px; color: var(--gold); display: none; text-shadow: 0 0 30px var(--gold); }
+        
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes zoomW { 0% { transform: scale(0.5); opacity: 0; } 40% { transform: scale(2); opacity: 1; } 100% { transform: scale(35); opacity: 0; } }
+
+        /* --- UI COMPONENTS --- */
+        header { padding: 20px; text-align: center; font-family: 'Cinzel', serif; font-size: 28px; letter-spacing: 2px; position: sticky; top: 0; z-index: 100; background: linear-gradient(to bottom, #0a0a0a, transparent); }
+        
+        .banner-scroll { display: flex; overflow-x: auto; gap: 15px; padding: 0 20px 20px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+        .banner-item { min-width: 90vw; height: 220px; border-radius: 12px; position: relative; overflow: hidden; scroll-snap-align: center; background: #222; border: 1px solid #333; }
+        .banner-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        .banner-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(to top, #000, transparent); padding: 15px; }
+        
+        .content-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 20px; }
+        .poster-card { background: #222; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; }
+        .poster-card img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* --- XBOX NAV --- */
+        .xbox-nav { position: fixed; bottom: 0; width: 100%; background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(15px); border-top: 1px solid #333; display: flex; justify-content: space-around; padding: 15px 0; z-index: 2000; }
+        .nav-btn { font-size: 24px; color: #555; transition: 0.3s; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+        .nav-btn.active { color: var(--gold); transform: translateY(-5px) scale(1.1); filter: drop-shadow(0 0 5px var(--gold)); }
+
+        /* --- ABOUT PAGE --- */
+        .about-box { margin-top: 20px; padding: 25px; border: 1px solid var(--gold); border-radius: 15px; background: rgba(255,215,0,0.05); line-height: 1.8; font-size: 16px; }
+
+        /* --- DETAILS & INLINE PLAYER --- */
+        #details-page { position: fixed; inset: 0; background: var(--dark); z-index: 4000; overflow-y: auto; display: none; padding-bottom: 100px; }
+        .ep-thumb { width: 80px; height: 45px; background: #000; border-radius: 4px; overflow: hidden; }
+        .ep-item { display: flex; gap: 10px; padding: 10px; background: #1a1a1a; margin-bottom: 10px; border-radius: 8px; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <div id="intro-overlay">
+        <div id="click-area" onclick="startWAnimation()" style="text-align:center; cursor:pointer;">
+            <div class="hand-icon"><i class='bx bxs-hand-up'></i></div>
+            <p class="tap-text">TAP HERE</p>
+        </div>
+        <div id="big-w">W</div>
+        <audio id="intro-sound" src="intro_sound.mp3"></audio>
+    </div>
+
+    <div id="app-content" style="display:none;">
+        <header class="gold-text text-glow">WOCHCLICKO</header>
+
+        <section id="home" class="page-sec active-sec">
+            <div class="banner-scroll" id="banner-list"></div>
+            <h3 style="margin: 0 20px 15px; color: #777; border-left: 3px solid var(--gold); padding-left: 10px;">Trending Now</h3>
+            <div class="content-grid" id="main-grid"></div>
+        </section>
+
+        <section id="search" class="page-sec" style="display:none; padding: 20px;">
+            <input type="text" id="search-bar" placeholder="Search (3+ letters)..." onkeyup="doSearch(this.value)" style="width:100%; padding:15px; background:#1a1a1a; border:1px solid #333; color:#fff; border-radius:10px; outline:none;">
+            <div id="search-results" style="margin-top:20px;"></div>
+        </section>
+
+        <section id="news" class="page-sec" style="display:none; padding: 20px;">
+            <h2 class="gold-text text-glow">LATEST NEWS</h2>
+            <div id="news-feed" style="margin-top:20px; color:#aaa;">Loading news...</div>
+        </section>
+
+        <section id="mylist" class="page-sec" style="display:none; padding: 20px;">
+            <h2 class="gold-text text-glow">MY LIST</h2>
+            <div id="mylist-feed" style="margin-top:20px;"></div>
+        </section>
+
+        <section id="settings" class="page-sec" style="display:none; padding: 20px;">
+            <h2 class="gold-text text-glow">SETTINGS</h2>
+            <div style="margin-top:20px;">
+                <div onclick="switchTab('mylist')" style="padding:20px; border-bottom:1px solid #222; cursor:pointer; font-size:18px;">Me</div>
+                <div onclick="showAbout()" style="padding:20px; border-bottom:1px solid #222; cursor:pointer; font-size:18px;">About</div>
+            </div>
+        </section>
+
+        <section id="about-page" class="page-sec" style="display:none; padding: 20px;">
+            <div style="display:flex; align-items:center; margin-bottom: 20px;">
+                <i class='bx bx-arrow-back' onclick="switchTab('settings')" style="font-size:35px; cursor:pointer; background:rgba(255,255,255,0.1); padding:5px; border-radius:50%;"></i>
+                <h2 class="gold-text text-glow" style="margin-left: 15px;">ABOUT</h2>
+            </div>
+            <div class="about-box gold-text">
+                Wochclicko, yahan aap ko dekhne ko milenge hindi dubbed anime bilkul free.<br><br>
+                Wochclicko Playone ke dwara nirmanit ek free anime app hai jiske maalik <b style="color:#fff;">Arnav Burman</b> hai.
+            </div>
+        </section>
+    </div>
+
+    <div id="details-page">
+        <i class='bx bx-arrow-back' onclick="closeDetails()" style="position:fixed; top:20px; left:20px; font-size:35px; z-index:20; background:rgba(0,0,0,0.6); padding:8px; border-radius:50%; cursor:pointer;"></i>
+        
+        <div style="height:300px; position:relative; background:#000; width:100%;">
+            
+            <img id="det-poster" style="width:100%; height:100%; object-fit:cover; opacity:0.6;">
+            <div id="det-title-container" style="position:absolute; bottom:20px; left:20px; z-index:5;">
+                <h1 id="det-title" class="gold-text text-glow" style="font-size:32px;"></h1>
+            </div>
+
+            <div id="inline-player" style="display:none; width:100%; height:100%; position:absolute; top:0; left:0; z-index:15; background:#000;">
+                
+                <iframe id="video-obj" src="" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true"></iframe>
+                
+                <i class='bx bx-x' onclick="stopInlineVideo()" style="position:absolute; top:15px; right:15px; font-size:35px; color:#fff; cursor:pointer; background:rgba(0,0,0,0.6); border-radius:50%; z-index:16;"></i>
+            </div>
+        </div>
+
+        <div style="padding:20px;">
+            <div style="display:flex; gap:15px; margin-bottom:20px;">
+                <button class="btn-gold btn-outline" id="det-list-btn" onclick="toggleCurrentList()"></button>
+                <button class="btn-gold" id="det-play-btn">WATCH NOW</button>
+            </div>
+            <p id="det-desc" style="color:#ccc; font-size:14px; line-height:1.6;"></p>
+            <p style="margin-top:15px; color:#555; font-size:11px;">by Playone</p>
+            <div id="ep-list-container" style="margin-top:25px;"></div>
+        </div>
+    </div>
+
+    <nav class="xbox-nav">
+        <div class="nav-btn active" onclick="switchTab('home', this)"><i class='bx bxs-home'></i></div>
+        <div class="nav-btn" onclick="switchTab('search', this)"><i class='bx bx-search'></i></div>
+        <div class="nav-btn" onclick="switchTab('news', this)"><i class='bx bxs-news'></i></div>
+        <div class="nav-btn" onclick="switchTab('mylist', this)"><i class='bx bxs-playlist'></i></div>
+        <div class="nav-btn" onclick="switchTab('settings', this)"><i class='bx bxs-cog'></i></div>
+    </nav>
+
+    <script>
+        // --- CONFIG & DATA ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCsI6Jq0Co5eqWxcE1Zz3DlDubj94OMjtc",
+            authDomain: "flareo-cce23.firebaseapp.com",
+            projectId: "flareo-cce23",
+            storageBucket: "flareo-cce23.firebasestorage.app",
+            messagingSenderId: "511161735764",
+            appId: "1:511161735764:web:c4cd2d49ae910d7d11ebc1",
+            measurementId: "G-4J8VK7Z6YF"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let allData = [];
+        let myWatchlist = JSON.parse(localStorage.getItem('wochList')) || [];
+        let currentItem = null;
+
+        const dummyData = [
+            { id: 'd1', title: 'Chhota Bheem', type: 'movie', desc: 'Bheem and his friends set out on a new adventure.', posterUrl: 'https://via.placeholder.com/400x600/111/FFD700?text=Chhota+Bheem', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' }
+        ];
+
+        // --- INTRO LOGIC ---
+        function startWAnimation() {
+            const sound = document.getElementById('intro-sound');
+            if(sound) { sound.play().catch(e => console.log("Continuing without sound")); }
+            
+            document.getElementById('click-area').style.display = 'none';
+            const w = document.getElementById('big-w');
+            w.style.display = 'block';
+            w.style.animation = 'zoomW 1.2s forwards ease-in';
+            
+            setTimeout(() => {
+                document.getElementById('intro-overlay').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('intro-overlay').style.display = 'none';
+                    document.getElementById('app-content').style.display = 'block';
+                    loadContent();
+                }, 600);
+            }, 1200);
+        }
+
+        // --- GDrive Embed Link Converter ---
+        function getEmbedLink(url) {
+            if (!url) return "";
+            if (url.includes("drive.google.com")) {
+                try {
+                    let id = "";
+                    if (url.includes("/d/")) id = url.split('/d/')[1].split('/')[0];
+                    else if (url.includes("id=")) id = url.split('id=')[1].split('&')[0];
+                    // Changed link to preview mode and appended autoplay parameter
+                    if (id) return `https://drive.google.com/file/d/${id}/preview?autoplay=1`;
+                } catch(e) { console.error(e); }
+            }
+            return url; 
+        }
+
+        // --- FULLSCREEN AUTO-LANDSCAPE MAGIC ---
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch((err) => console.log("Rotate permission restricted by device."));
+                }
+            } else {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            }
+        });
+
+        // --- CONTENT LOGIC ---
+        async function loadContent() {
+            try {
+                const snap = await db.collection("Content").get();
+                allData = snap.empty ? dummyData : snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+            } catch(e) {
+                console.log("Firebase error, using dummy data.", e);
+                allData = dummyData;
+            }
+            renderHome();
+            loadNews();
+        }
+
+        function renderHome() {
+            const banner = document.getElementById('banner-list');
+            const grid = document.getElementById('main-grid');
+            banner.innerHTML = ""; grid.innerHTML = "";
+
+            allData.forEach((item, i) => {
+                if(i < 5) {
+                    banner.innerHTML += `<div class="banner-item"><img class="banner-img" src="${item.posterUrl}"><div class="banner-overlay"><h2 class="gold-text">${item.title}</h2><div style="margin-top:10px; display:flex; gap:10px;"><button class="btn-gold btn-outline" id="banner-btn-${item.id}" onclick="toggleBannerList(this, '${item.id}')">${myWatchlist.includes(item.id) ? 'Remove' : 'Add List'}</button><button class="btn-gold" onclick="openDetails('${item.id}')">WATCH</button></div></div></div>`;
+                }
+                grid.innerHTML += `<div class="poster-card" onclick="openDetails('${item.id}')"><img src="${item.posterUrl}" style="cursor:pointer;"></div>`;
+            });
+        }
+
+        async function loadNews() {
+            const newsFeed = document.getElementById('news-feed');
+            newsFeed.innerHTML = "Loading news...";
+            try {
+                const snap = await db.collection("News").orderBy("timestamp", "desc").get();
+                if(snap.empty) {
+                    newsFeed.innerHTML = "No news today. Check back later.";
+                    return;
+                }
+                newsFeed.innerHTML = "";
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    let imgHtml = data.imageUrl ? `<img src="${data.imageUrl}" style="width:100%; height:200px; object-fit:cover; border-radius:8px; margin-bottom:10px;">` : '';
+                    newsFeed.innerHTML += `
+                        <div style="background:#1a1a1a; padding:15px; border-radius:10px; margin-bottom:15px; border: 1px solid #333;">
+                            ${imgHtml}
+                            <h3 class="gold-text">${data.headline}</h3>
+                            <p style="font-size:10px; color:#555; margin-bottom:10px;">Published on: ${data.date}</p>
+                            <p style="color:#ccc; font-size:14px; line-height:1.6;">${data.desc}</p>
+                        </div>
+                    `;
+                });
+            } catch(e) {
+                console.log("Error loading news", e);
+                newsFeed.innerHTML = "Failed to load news.";
+            }
+        }
+
+        function switchTab(id, el) {
+            document.querySelectorAll('.page-sec').forEach(s => s.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
+            if(el) {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                el.classList.add('active');
+            }
+            if(id === 'mylist') renderMyList();
+        }
+
+        function showAbout() {
+            document.querySelectorAll('.page-sec').forEach(s => s.style.display = 'none');
+            document.getElementById('about-page').style.display = 'block';
+        }
+
+        function openDetails(id) {
+            const item = allData.find(d => d.id === id);
+            currentItem = item;
+            
+            stopInlineVideo();
+
+            document.getElementById('det-poster').src = item.posterUrl;
+            document.getElementById('det-title').innerText = item.title;
+            document.getElementById('det-desc').innerText = item.desc || "";
+            document.getElementById('det-list-btn').innerText = myWatchlist.includes(id) ? 'Remove List' : 'Add List';
+            
+            const epCon = document.getElementById('ep-list-container');
+            if(item.type === 'series' && item.episodes) {
+                document.getElementById('det-play-btn').innerText = "SEE EPISODES BELOW";
+                document.getElementById('det-play-btn').onclick = () => epCon.scrollIntoView({behavior:"smooth"});
+                epCon.innerHTML = "<h3 class='gold-text text-glow'>EPISODES</h3>";
+                item.episodes.forEach((ep, i) => {
+                    epCon.innerHTML += `<div class="ep-item"><div class="ep-thumb"><img src="https://via.placeholder.com/80x45/000000/FFFFFF?text=Playone" style="width:100%;height:100%;object-fit:cover;"></div><div style="flex:1;">Ep ${i+1}: ${ep.title}</div><button class="btn-gold" onclick="playVideo('${ep.url}')">PLAY</button></div>`;
+                });
+            } else {
+                document.getElementById('det-play-btn').innerText = "WATCH NOW";
+                const urlToPlay = item.videoUrl || (item.episodes ? item.episodes[0].url : "");
+                document.getElementById('det-play-btn').onclick = () => playVideo(urlToPlay);
+                epCon.innerHTML = "";
+            }
+            document.getElementById('details-page').style.display = 'block';
+        }
+
+        function closeDetails() { 
+            stopInlineVideo(); 
+            document.getElementById('details-page').style.display = 'none'; 
+        }
+
+        // --- Iframe Play Logic ---
+        function playVideo(url) {
+            const embedUrl = getEmbedLink(url);
+            
+            document.getElementById('det-poster').style.display = 'none';
+            document.getElementById('det-title-container').style.display = 'none';
+            document.getElementById('inline-player').style.display = 'block';
+            
+            document.getElementById('details-page').scrollTo({ top: 0, behavior: 'smooth' });
+
+            document.getElementById('video-obj').src = embedUrl;
+        }
+
+        function stopInlineVideo() {
+            document.getElementById('video-obj').src = "";
+            document.getElementById('inline-player').style.display = 'none';
+            document.getElementById('det-poster').style.display = 'block';
+            document.getElementById('det-title-container').style.display = 'block';
+        }
+
+        function toggleBannerList(btn, id) {
+            toggleList(id);
+            btn.innerHTML = myWatchlist.includes(id) ? "<i class='bx bx-check'></i> Remove" : "<i class='bx bx-plus'></i> List";
+        }
+
+        function toggleList(id, btn) {
+            const idx = myWatchlist.indexOf(id);
+            if(idx === -1) myWatchlist.push(id); else myWatchlist.splice(idx, 1);
+            localStorage.setItem('wochList', JSON.stringify(myWatchlist));
+            if(btn) btn.innerText = myWatchlist.includes(id) ? 'Remove' : 'Add List';
+            if(currentItem && currentItem.id === id) document.getElementById('det-list-btn').innerText = myWatchlist.includes(id) ? 'Remove List' : 'Add List';
+            
+            const bannerBtn = document.getElementById(`banner-btn-${id}`);
+            if(bannerBtn) bannerBtn.innerHTML = myWatchlist.includes(id) ? "<i class='bx bx-check'></i> Remove" : "<i class='bx bx-plus'></i> List";
+        }
+        function toggleCurrentList() { toggleList(currentItem.id); }
+
+        function renderMyList() {
+            const con = document.getElementById('mylist-feed');
+            con.innerHTML = "";
+            if(myWatchlist.length === 0) {
+                con.innerHTML = "<p style='color:#555;'>No items in your list.</p>";
+                return;
+            }
+            myWatchlist.forEach(id => {
+                const item = allData.find(d => d.id === id);
+                if(item) {
+                    con.innerHTML += `
+                    <div style="background:#1a1a1a; padding:15px; margin-bottom:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:#fff; flex:1; font-weight:bold;">${item.title}</span>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn-gold" onclick="openDetails('${item.id}')">VIEW</button>
+                            <button class="btn-gold btn-outline" onclick="toggleList('${item.id}'); renderMyList()">Remove</button>
+                        </div>
+                    </div>`;
+                }
+            });
+        }
+
+        function doSearch(q) {
+            const res = document.getElementById('search-results');
+            res.innerHTML = "";
+            if(q.length < 3) return;
+            allData.filter(d => d.title.toLowerCase().includes(q.toLowerCase())).forEach(d => {
+                res.innerHTML += `
+                <div style="background:#1a1a1a; padding:10px; margin-bottom:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#fff; font-weight:bold;">${d.title}</span>
+                    <button class="btn-gold" onclick="openDetails('${d.id}')">VIEW</button>
+                </div>`;
+            });
+        }
+    </script>
+</body>
+</html>
