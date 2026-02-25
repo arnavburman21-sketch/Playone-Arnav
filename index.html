@@ -127,8 +127,7 @@
 
             <div id="inline-player" style="display:none; width:100%; height:100%; position:absolute; top:0; left:0; z-index:15; background:#000;">
                 <iframe id="video-obj" src="" style="width:100%; height:100%; border:none;" 
-                        allow="autoplay; fullscreen; encrypted-media" 
-                        sandbox="allow-forms allow-scripts allow-pointer-lock allow-same-origin allow-top-navigation allow-presentation"
+                        allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
                         allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true"></iframe>
                 
                 <i class='bx bx-x' onclick="stopInlineVideo()" style="position:absolute; top:15px; right:15px; font-size:35px; color:#fff; cursor:pointer; background:rgba(0,0,0,0.6); border-radius:50%; z-index:16;"></i>
@@ -172,12 +171,10 @@
         let myWatchlist = JSON.parse(localStorage.getItem('wochList')) || [];
         let currentItem = null;
 
-        // Dummy Data fallback if Firebase fails
         const dummyData = [
             { id: 'd1', title: 'Welcome to Wochclicko', type: 'movie', desc: 'Add content to Firebase to see it here.', posterUrl: 'https://via.placeholder.com/400x600/111/FFD700?text=Playone', videoUrl: '' }
         ];
 
-        // --- 2. INTRO ANIMATION ---
         function startWAnimation() {
             document.getElementById('click-area').style.display = 'none';
             const w = document.getElementById('big-w');
@@ -194,7 +191,6 @@
             }, 1200);
         }
 
-        // --- 3. AUTO-LANDSCAPE LOCK ---
         document.addEventListener('fullscreenchange', () => {
             if (document.fullscreenElement) {
                 if (screen.orientation && screen.orientation.lock) {
@@ -207,7 +203,6 @@
             }
         });
 
-        // --- 4. DATA FETCHING ---
         async function loadContent() {
             try {
                 const snap = await db.collection("Content").get();
@@ -261,7 +256,6 @@
             }
         }
 
-        // --- 5. NAVIGATION ---
         function switchTab(id, el) {
             document.querySelectorAll('.page-sec').forEach(s => s.style.display = 'none');
             document.getElementById(id).style.display = 'block';
@@ -277,7 +271,6 @@
             document.getElementById('about-page').style.display = 'block';
         }
 
-        // --- 6. DETAILS & PLAYER LOGIC ---
         function openDetails(id) {
             const item = allData.find(d => d.id === id);
             currentItem = item;
@@ -311,7 +304,6 @@
             document.getElementById('details-page').style.display = 'none'; 
         }
 
-        // GDrive Embed Link Converter (Loading Fix)
         function getEmbedLink(url) {
             if (!url) return "";
             if (url.includes("drive.google.com")) {
@@ -319,7 +311,8 @@
                     let id = "";
                     if (url.includes("/d/")) id = url.split('/d/')[1].split('/')[0];
                     else if (url.includes("id=")) id = url.split('id=')[1].split('&')[0];
-                    if (id) return `https://drive.google.com/file/d/${id}/preview?autoplay=1`;
+                    // Yahan se ?autoplay=1 hata diya gaya hai
+                    if (id) return `https://drive.google.com/file/d/${id}/preview`;
                 } catch(e) { console.error(e); }
             }
             return url; 
@@ -344,7 +337,6 @@
             document.getElementById('det-title-container').style.display = 'block';
         }
 
-        // --- 7. WATCHLIST & SEARCH LOGIC ---
         function toggleBannerList(btn, id) {
             toggleList(id);
             btn.innerHTML = myWatchlist.includes(id) ? "<i class='bx bx-check'></i> Remove" : "<i class='bx bx-plus'></i> List";
@@ -355,7 +347,7 @@
             if(idx === -1) myWatchlist.push(id); else myWatchlist.splice(idx, 1);
             localStorage.setItem('wochList', JSON.stringify(myWatchlist));
             if(btn) btn.innerText = myWatchlist.includes(id) ? 'Remove' : 'Add List';
-            if(currentItem && currentItem.id === id) document.getElementById('det-list-btn').innerText = myWatchlist.includes(id) ? 'Remove List' : 'Add List';
+            if(curentItem && currentItem.id === id) document.getElementById('det-list-btn').innerText = myWatchlist.includes(id) ? 'Remove List' : 'Add List';
             
             const bannerBtn = document.getElementById(`banner-btn-${id}`);
             if(bannerBtn) bannerBtn.innerHTML = myWatchlist.includes(id) ? "<i class='bx bx-check'></i> Remove" : "<i class='bx bx-plus'></i> List";
